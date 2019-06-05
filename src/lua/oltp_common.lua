@@ -169,9 +169,9 @@ function create_table(drv, con, table_num)
    if drv:name() == "mysql"
    then
       if sysbench.opt.auto_inc then
-         id_def = "INTEGER NOT NULL AUTO_INCREMENT"
+         id_def = "BIGINT NOT NULL AUTO_INCREMENT"
       else
-         id_def = "INTEGER NOT NULL"
+         id_def = "BIGINT NOT NULL"
       end
       engine_def = "/*! ENGINE = " .. sysbench.opt.mysql_storage_engine .. " */"
    elseif drv:name() == "pgsql"
@@ -190,7 +190,7 @@ function create_table(drv, con, table_num)
    print(string.format("Creating table 'sbtest%d'...", table_num))
 
    query = string.format([[
-CREATE TABLE sbtest%d(
+CREATE TABLE IF NOT EXISTS sbtest%d(
   id %s,
   k INTEGER DEFAULT '0' NOT NULL,
   c CHAR(120) DEFAULT '' NOT NULL,
