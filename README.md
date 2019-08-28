@@ -14,6 +14,7 @@
     - [Linux](#linux)
     - [macOS](#macos)
     - [Windows](#windows)
+- [Building Docker Container](#building-docker-container)
 - [Building and Installing From Source](#building-and-installing-from-source)
     - [Build Requirements](#build-requirements)
         - [Windows](#windows)
@@ -110,6 +111,17 @@ After installing WSL and getting into he bash prompt on Windows
 following Debian/Ubuntu installation instructions is
 sufficient. Alternatively, one can use WSL to build and install sysbench
 from source, or use an older sysbench release to build a native binary.
+
+# Building Docker Container
+
+From this directory run:
+
+```
+make -f Makefile.docker-build build
+```
+
+That Makefile also has a `push` directive to push to `registry.planetscale.com`
+with images that are tagged with date and git hash.
 
 # Building and Installing From Source
 

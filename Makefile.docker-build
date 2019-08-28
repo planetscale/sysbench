@@ -1,0 +1,14 @@
+.PHONY: build push
+
+IMAGE:=registry.planetscale.com/vitess/sysbench
+
+build:
+	docker build .
+
+push: DATE=$(shell date -I)
+push: GITHASH=$(shell git log -1 --pretty=format:"%H")
+push: build
+	docker push $(IMAGE):latest
+	docker tag $(IMAGE):latest $(IMAGE):$(DATE)-$(GITHASH)
+	docker push $(IMAGE):$(DATE)-$(GITHASH)
+
