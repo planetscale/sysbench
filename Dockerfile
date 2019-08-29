@@ -18,7 +18,13 @@ RUN cd /src \
     && make -j \
     && make install
 
+# These are the lua configurations for TPCC with the changes needed to work with
+# Vitess.
 RUN git clone https://github.com/planetscale/sysbench-tpcc.git /sysbench/sysbench-tpcc
+
+# This is pointing to master as of 2019-08-28, so we know given a particular
+# docker image which version we are using.
+RUN cd /sysbench/sysbench-tpcc && git checkout a0783efc2dda45e4f0eb765de06a452aa34c46dc
 
 RUN chgrp -R 0 /sysbench && chmod -R g=u /sysbench 
 
