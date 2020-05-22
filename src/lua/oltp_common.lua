@@ -72,7 +72,7 @@ sysbench.cmdline.options = {
       {"Reconnect after every N events. The default (0) is to not reconnect",
        0},
    report_json = 
-      {"Report format is JSON",false}
+      {"Report format is JSON",false},
    mysql_storage_engine =
       {"Storage engine, if MySQL is used", "innodb"},
    pgsql_variant =
