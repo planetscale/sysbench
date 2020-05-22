@@ -71,6 +71,8 @@ sysbench.cmdline.options = {
    reconnect =
       {"Reconnect after every N events. The default (0) is to not reconnect",
        0},
+   report_json = 
+      {"Report format is JSON",false}
    mysql_storage_engine =
       {"Storage engine, if MySQL is used", "innodb"},
    pgsql_variant =
@@ -80,6 +82,24 @@ sysbench.cmdline.options = {
           "create_secondary is automatically disabled, and " ..
           "delete_inserts is set to 0"}
 }
+
+function sysbench.hooks.report_intermediate(stat)
+-- --   print("my stat: ", val)
+   if  sysbench.opt.report_json then
+   	sysbench.report_json(stat)
+   else
+   	sysbench.report_default(stat)
+   end
+end
+
+function sysbench.hooks.report_cumulative(stat)
+-- --   print("my stat: ", val)
+   if  sysbench.opt.report_json then
+   	sysbench.report_json(stat)
+   else
+   	sysbench.report_default(stat)
+   end
+end
 
 -- Prepare the dataset. This command supports parallel execution, i.e. will
 -- benefit from executing with --threads > 1 as long as --tables > 1
