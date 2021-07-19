@@ -30,6 +30,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #include "sysbench.h"
 
@@ -37,6 +39,7 @@
 static sb_arg_t tpch_args[] =
 {
   SB_OPT("data-size", "Size of the data to generate in GB", "", INT),
+  SB_OPT("root-path", "Absolute path to sysbench's root", "", STRING),
 
   SB_OPT_END
 };
@@ -53,6 +56,7 @@ static int tpch_done(void);
 /* TPC-H test struct */
 typedef struct tpch_s {
     unsigned int size;
+    char *root_path;
 } tpch_t;
 
 static tpch_t tpch = {};
@@ -88,13 +92,113 @@ int register_test_tpch(sb_list_t * tests)
 static int get_tpch_args(void)
 {
     int size = sb_get_value_int("data-size");
+    char *root_path = sb_get_value_string("root-path");
 
     if (size <= 0) {
         log_text(LOG_FATAL, "Invalid value of data-size: %d.", size);
         return 1;
     }
-    tpch.size = (unsigned int)size;
+    if (root_path == NULL) {
+        log_text(LOG_FATAL, "Invalid value of root-path, got NULL.");
+        return 1;
+    }
 
+    tpch.size = (unsigned int)size;
+    tpch.root_path = root_path;
+    return 0;
+}
+
+static char *get_script_dir_path(void)
+{
+    int size = strlen(tpch.root_path) + strlen("/src/tests/tpch/scripts") + 1;
+    char *path = malloc(sizeof(char) * size);
+
+    if (path == NULL) {
+        return NULL;
+    }
+    strcat(path, tpch.root_path);
+    if (strlen(tpch.root_path) > 0 && tpch.root_path[strlen(tpch.root_path) - 1] != '/') {
+        strcat(path, "/");
+    }
+    strcat(path, "src/tests/tpch/scripts");
+    return path;
+}
+
+static char** get_script_arguments(const char *path)
+{
+    const int nb_args = 4;
+    char args_str[nb_args][32] = {
+            "--size",
+            "",
+            "--mysql-params",
+            "tpch"
+    };
+    char **args = malloc(sizeof(char *) * (nb_args + 2));
+    if (args == NULL)
+        return NULL;
+
+    sprintf(args_str[1], "%d", tpch.size);
+
+    args[0] = malloc(sizeof(char) * strlen(path));
+    if (args[0] == NULL) {
+        free(args);
+        return NULL;
+    }
+
+    strcpy(args[0], path);
+    for (int i = 0; i < nb_args; i++) {
+        args[i+1] = malloc(sizeof(char) * strlen(args_str[i]));
+        if (args[i+1] == NULL) {
+            for (int j = i; j >= 0; j--)
+                free(args[j]);
+            free(args);
+            return NULL;
+        }
+        strcpy(args[i+1], args_str[i]);
+    }
+    args[nb_args+1] = NULL;
+    return args;
+}
+
+static int execute_init_script(void)
+{
+    char *path = NULL;
+    char *exec_path = NULL;
+    char **args = NULL;
+    int status = 0;
+    struct sigaction saves[2];
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        return 1;
+    }
+    if (pid == 0) {
+        path = get_script_dir_path();
+        if (path == NULL)
+            return 1;
+        chdir(path);
+
+        exec_path = malloc(sizeof(char) * (strlen(path) + strlen("/tpch_init.sh")));
+        if (exec_path == NULL)
+            return 1;
+        strcat(exec_path, path);
+        strcat(exec_path, "/tpch_init.sh");
+
+        args = get_script_arguments(exec_path);
+        if (args == NULL)
+            return 1;
+        int exit_code = execve(exec_path, args, sb_globals.env);
+        if (exit_code == -1)
+            printf("Something went wrong: %s\n", strerror(errno));
+        exit(exit_code);
+    }
+    waitpid(pid, &status, 0);
+
+    free(path);
+    free(exec_path);
+
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
     return 0;
 }
 
@@ -103,6 +207,7 @@ int tpch_prepare(void)
     if (get_tpch_args() > 0) {
         return 1;
     }
+    execute_init_script();
 
     return 0;
 }
