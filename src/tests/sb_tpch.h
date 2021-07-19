@@ -16,9 +16,9 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 */
 
-#ifndef SB_CPU_H
-#define SB_CPU_H
+#ifndef SB_TPCH_H
+#define SB_TPCH_H
 
-int register_test_cpu(sb_list_t *tests);
+int register_test_tpch(sb_list_t *tests);
 
 #endif

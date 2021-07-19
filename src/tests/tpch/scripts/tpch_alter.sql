@@ -1,104 +1,94 @@
--- Sccsid:     @(#)dss.ri	2.1.8.1
--- TPCD Benchmark Version 8.0
+-- sccsid:     @(#)dss.ri	2.1.8.1
+-- tpcd benchmark version 8.0
 
--- ALTER TABLE REGION DROP PRIMARY KEY;
--- ALTER TABLE NATION DROP PRIMARY KEY;
--- ALTER TABLE PART DROP PRIMARY KEY;
--- ALTER TABLE SUPPLIER DROP PRIMARY KEY;
--- ALTER TABLE PARTSUPP DROP PRIMARY KEY;
--- ALTER TABLE ORDERS DROP PRIMARY KEY;
--- ALTER TABLE LINEITEM DROP PRIMARY KEY;
--- ALTER TABLE CUSTOMER DROP PRIMARY KEY;
+-- for table region
+alter table region
+    add constraint region_pk primary key (r_regionkey);
 
+commit work;
 
--- For table REGION
-ALTER TABLE REGION
-ADD CONSTRAINT region_pk PRIMARY KEY (R_REGIONKEY);
+-- for table nation
+alter table nation
+    add constraint nation_pk primary key (n_nationkey);
 
-COMMIT WORK;
+commit work;
 
--- For table NATION
-ALTER TABLE NATION
-ADD CONSTRAINT nation_pk PRIMARY KEY (N_NATIONKEY);
+alter table nation
+    add constraint nation_fk1 foreign key (n_regionkey) references region (r_regionkey);
 
-COMMIT WORK;
+commit work;
 
-ALTER TABLE NATION
-ADD CONSTRAINT NATION_FK1 FOREIGN KEY (N_REGIONKEY) references REGION (R_REGIONKEY);
+-- for table part
+alter table part
+    add constraint part_pk primary key (p_partkey);
 
-COMMIT WORK;
+commit work;
 
--- For table PART
-ALTER TABLE PART
-ADD CONSTRAINT part_pk PRIMARY KEY (P_PARTKEY);
+-- for table supplier
+alter table supplier
+    add constraint supplier_pk primary key (s_suppkey);
 
-COMMIT WORK;
+commit work;
 
--- For table SUPPLIER
-ALTER TABLE SUPPLIER
-ADD CONSTRAINT supplier_pk PRIMARY KEY (S_SUPPKEY);
+alter table supplier
+    add constraint supplier_fk1 foreign key (s_nationkey) references nation (n_nationkey);
 
-COMMIT WORK;
+commit work;
 
-ALTER TABLE SUPPLIER
-ADD CONSTRAINT SUPPLIER_FK1 FOREIGN KEY (S_NATIONKEY) references NATION (N_NATIONKEY);
+-- for table partsupp
+alter table partsupp
+    add constraint partsupp_pk primary key (ps_partkey,ps_suppkey);
 
-COMMIT WORK;
+commit work;
 
--- For table PARTSUPP
-ALTER TABLE PARTSUPP
-ADD CONSTRAINT partsupp_pk PRIMARY KEY (PS_PARTKEY,PS_SUPPKEY);
+-- for table customer
+alter table customer
+    add constraint customer_pk primary key (c_custkey);
 
-COMMIT WORK;
+commit work;
 
--- For table CUSTOMER
-ALTER TABLE CUSTOMER
-ADD CONSTRAINT customer_pk PRIMARY KEY (C_CUSTKEY);
+alter table customer
+    add constraint customer_fk1 foreign key (c_nationkey) references nation (n_nationkey);
 
-COMMIT WORK;
+commit work;
 
-ALTER TABLE CUSTOMER
-ADD CONSTRAINT CUSTOMER_FK1 FOREIGN KEY (C_NATIONKEY) references NATION (N_NATIONKEY);
+-- for table lineitem
+alter table lineitem
+    add constraint lineitem_pk primary key (l_orderkey,l_linenumber);
 
-COMMIT WORK;
+commit work;
 
--- For table LINEITEM
-ALTER TABLE LINEITEM
-ADD CONSTRAINT lineitem_pk PRIMARY KEY (L_ORDERKEY,L_LINENUMBER);
+-- for table orders
+alter table orders
+    add constraint orders_pk primary key (o_orderkey);
 
-COMMIT WORK;
+commit work;
 
--- For table ORDERS
-ALTER TABLE ORDERS
-ADD CONSTRAINT orders_pk PRIMARY KEY (O_ORDERKEY);
+-- for table partsupp
+alter table partsupp
+    add constraint partsupp_fk1 foreign key (ps_suppkey) references supplier (s_suppkey);
 
-COMMIT WORK;
+commit work;
 
--- For table PARTSUPP
-ALTER TABLE PARTSUPP
-ADD CONSTRAINT PARTSUPP_FK1 FOREIGN KEY (PS_SUPPKEY) references SUPPLIER (S_SUPPKEY);
+alter table partsupp
+    add constraint partsupp_fk2 foreign key (ps_partkey) references part (p_partkey);
 
-COMMIT WORK;
+commit work;
 
-ALTER TABLE PARTSUPP
-ADD CONSTRAINT PARTSUPP_FK2 FOREIGN KEY (PS_PARTKEY) references PART (P_PARTKEY);
+-- for table orders
+alter table orders
+    add constraint orders_fk1 foreign key (o_custkey) references customer (c_custkey);
 
-COMMIT WORK;
+commit work;
 
--- For table ORDERS
-ALTER TABLE ORDERS
-ADD CONSTRAINT ORDERS_FK1 FOREIGN KEY (O_CUSTKEY) references CUSTOMER (C_CUSTKEY);
+-- for table lineitem
+alter table lineitem
+    add constraint lineitem_fk1 foreign key (l_orderkey) references orders (o_orderkey);
 
-COMMIT WORK;
+commit work;
 
--- For table LINEITEM
-ALTER TABLE LINEITEM
-ADD CONSTRAINT LINEITEM_FK1 FOREIGN KEY (L_ORDERKEY) references ORDERS (O_ORDERKEY);
+alter table lineitem
+    add constraint lineitem_fk2 foreign key (l_partkey,l_suppkey) references
+        partsupp (ps_partkey,ps_suppkey);
 
-COMMIT WORK;
-
-ALTER TABLE LINEITEM
-ADD CONSTRAINT LINEITEM_FK2 FOREIGN KEY (L_PARTKEY,L_SUPPKEY) references
-        PARTSUPP (PS_PARTKEY,PS_SUPPKEY);
-
-COMMIT WORK;
+commit work;

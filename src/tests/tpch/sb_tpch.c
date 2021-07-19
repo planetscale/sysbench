@@ -25,25 +25,37 @@
 #endif
 
 #include <inttypes.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "sysbench.h"
 
-/* CPU test arguments */
+/* TPC-H test arguments */
 static sb_arg_t tpch_args[] =
 {
-  SB_OPT("path-dbgen", "upper limit for primes generator", "", STRING),
-  SB_OPT("path-qgen", "upper limit for primes generator", "", STRING),
+  SB_OPT("data-size", "Size of the data to generate in GB", "", INT),
 
   SB_OPT_END
 };
 
-/* CPU test operations */
+/* TPC-H test operations */
+static int tpch_prepare(void);
 static int tpch_init(void);
 static void tpch_print_mode(void);
 static sb_event_t tpch_next_event(int thread_id);
 static int tpch_execute_event(sb_event_t *, int);
 static void tpch_report_cumulative(sb_stat_t *);
 static int tpch_done(void);
+
+/* TPC-H test struct */
+typedef struct tpch_s {
+    unsigned int size;
+} tpch_t;
+
+static tpch_t tpch = {};
 
 static sb_test_t tpch_test =
 {
@@ -56,6 +68,9 @@ static sb_test_t tpch_test =
     .execute_event = tpch_execute_event,
     .report_cumulative = tpch_report_cumulative,
     .done = tpch_done
+  },
+  .builtin_cmds = {
+    .prepare = tpch_prepare
   },
   .args = tpch_args
 };
@@ -70,17 +85,35 @@ int register_test_tpch(sb_list_t * tests)
   return 0;
 }
 
+static int get_tpch_args(void)
+{
+    int size = sb_get_value_int("data-size");
+
+    if (size <= 0) {
+        log_text(LOG_FATAL, "Invalid value of data-size: %d.", size);
+        return 1;
+    }
+    tpch.size = (unsigned int)size;
+
+    return 0;
+}
+
+int tpch_prepare(void)
+{
+    if (get_tpch_args() > 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
 int tpch_init(void)
 {
-  int prime_option= sb_get_value_int("cpu-max-prime");
-  if (prime_option <= 0)
-  {
-    log_text(LOG_FATAL, "Invalid value of cpu-max-prime: %d.", prime_option);
-    return 1;
-  }
-  max_prime= (unsigned int)prime_option;
+    if (get_tpch_args() > 0) {
+        return 1;
+    }
 
-  return 0;
+    return 0;
 }
 
 

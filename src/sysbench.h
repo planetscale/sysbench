@@ -43,6 +43,7 @@
 #include "tests/sb_memory.h"
 #include "tests/sb_threads.h"
 #include "tests/sb_mutex.h"
+#include "tests/sb_tpch.h"
 
 /* Macros to control global execution mutex */
 #define SB_THREAD_MUTEX_LOCK() pthread_mutex_lock(&sb_globals.exec_mutex) 
@@ -182,6 +183,7 @@ typedef struct
   int             error CK_CC_CACHELINE;        /* global error flag */
   int             argc;         /* command line arguments count */
   char            **argv;      /* command line arguments */
+  char            **env;      /* environment */
   unsigned int    tx_rate;      /* target transaction rate */
   uint64_t        max_events;   /* maximum number of events to execute */
   uint64_t        max_time_ns;  /* total execution time limit */

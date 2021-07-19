@@ -39,6 +39,9 @@ mysql "$mysql_params" < tpch_alter.sql
 
 for file in $(find $root/data -name '*.tbl')
 do
-  echo $file
+  echo "inserting $file"
   echo "SET GLOBAL local_infile=1; /*+ SET_VAR(local_infile=1) */ LOAD DATA LOCAL INFILE '$file' INTO TABLE SUPPLIER FIELDS TERMINATED BY '|' LINES TERMINATED BY '|\n';" | mysql --local-infile=1 $mysql_params
+  rm -f $file
 done
+
+rmdir "$root/data"
