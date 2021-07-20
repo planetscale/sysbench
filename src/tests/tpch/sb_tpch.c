@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "db_driver.h"
 
 #include "sysbench.h"
 
@@ -57,6 +58,8 @@ static int tpch_done(void);
 typedef struct tpch_s {
     unsigned int size;
     char *root_path;
+    char *query_path;
+    db_driver_t *db_driver;
 } tpch_t;
 
 static tpch_t tpch = {};
@@ -108,9 +111,9 @@ static int get_tpch_args(void)
     return 0;
 }
 
-static char *get_script_dir_path(void)
+static char *add_path_to_root(char *add)
 {
-    int size = strlen(tpch.root_path) + strlen("/src/tests/tpch/scripts") + 1;
+    int size = strlen(tpch.root_path) + strlen(add) + 2;
     char *path = malloc(sizeof(char) * size);
 
     if (path == NULL) {
@@ -120,7 +123,7 @@ static char *get_script_dir_path(void)
     if (strlen(tpch.root_path) > 0 && tpch.root_path[strlen(tpch.root_path) - 1] != '/') {
         strcat(path, "/");
     }
-    strcat(path, "src/tests/tpch/scripts");
+    strcat(path, add);
     return path;
 }
 
@@ -166,14 +169,13 @@ static int execute_init_script(void)
     char *exec_path = NULL;
     char **args = NULL;
     int status = 0;
-    struct sigaction saves[2];
     pid_t pid = fork();
 
     if (pid == -1) {
         return 1;
     }
     if (pid == 0) {
-        path = get_script_dir_path();
+        path = add_path_to_root("src/tests/tpch/scripts");
         if (path == NULL)
             return 1;
         chdir(path);
@@ -214,9 +216,16 @@ int tpch_prepare(void)
 
 int tpch_init(void)
 {
-    if (get_tpch_args() > 0) {
+    if (get_tpch_args() > 0)
         return 1;
-    }
+
+    tpch.db_driver = db_create(NULL);
+    if (tpch.db_driver == NULL)
+        return 1;
+
+    tpch.query_path = add_path_to_root("src/tests/tpch/scripts/queries");
+    if (tpch.query_path == NULL)
+        return 1;
 
     return 0;
 }
@@ -224,38 +233,79 @@ int tpch_init(void)
 
 sb_event_t tpch_next_event(int thread_id)
 {
-  sb_event_t req;
+    sb_event_t req;
 
-  (void) thread_id; /* unused */
+    req.type = SB_REQ_TYPE_SQL;
 
-  req.type = SB_REQ_TYPE_CPU;
+    return req;
+}
 
-  return req;
+static char *get_sql_file_content(unsigned int id)
+{
+    FILE *f = NULL;
+    long file_size = 0;
+    char *content = NULL;
+    char *file_path = malloc(sizeof(char) * (strlen(tpch.query_path) + strlen("/00.sql")));
+
+    if (file_path == NULL)
+        return NULL;
+    if (id < 10)
+        sprintf(file_path, "%s/0%d.sql", tpch.query_path, id);
+    else
+        sprintf(file_path, "%s/%d.sql", tpch.query_path, id);
+
+    f = fopen(file_path, "rb");
+    if (f == NULL) {
+        free(file_path);
+        return NULL;
+    }
+    fseek(f, 0L, SEEK_END);
+    file_size = ftell(f);
+    rewind(f);
+
+    content = malloc(sizeof(char) * file_size);
+    if (content == NULL) {
+        fclose(f);
+        free(file_path);
+        return NULL;
+    }
+
+    fread(content, file_size, 1, f);
+    fclose(f);
+    f = NULL;
+
+    return content;
 }
 
 int tpch_execute_event(sb_event_t *r, int thread_id)
 {
-  unsigned long long c;
-  unsigned long long l;
-  double t;
-  unsigned long long n=0;
+    static unsigned int event_count = 1;
+    db_conn_t *conn = NULL;
+    char *query = NULL;
+    size_t len = 0;
+    unsigned int script_id = event_count % 22 == 0 ? 22 : event_count % 22;
+    (void)r; /* unused */
 
-  (void)thread_id; /* unused */
-  (void)r; /* unused */
+    event_count++;
 
-  /* So far we're using very simple test prime number tests in 64bit */
+    conn = db_connection_create(tpch.db_driver);
+    if (conn == NULL) {
+        return 1;
+    }
 
-  for(c=3; c < max_prime; c++)
-  {
-    t = sqrt((double)c);
-    for(l = 2; l <= t; l++)
-      if (c % l == 0)
-        break;
-    if (l > t )
-      n++; 
-  }
+    query = get_sql_file_content(script_id);
+    len = strlen(query);
 
-  return 0;
+    db_result_t *res = db_query(conn, query, len);
+    if (res == NULL) {
+        printf("Error, got NULL result with query id %d\n", script_id);
+        return 1;
+    }
+
+    db_free_results(res);
+    db_connection_free(conn);
+
+    return 0;
 }
 
 void tpch_print_mode(void)
@@ -268,15 +318,20 @@ void tpch_print_mode(void)
 
 void tpch_report_cumulative(sb_stat_t *stat)
 {
-  log_text(LOG_NOTICE, "CPU speed:");
-  log_text(LOG_NOTICE, "    events per second: %8.2f",
+    log_text(LOG_NOTICE, "CPU speed:");
+    log_text(LOG_NOTICE, "    events per second: %8.2f",
            stat->events / stat->time_interval);
 
-  sb_report_cumulative(stat);
+
+    printf("stat %d %d\n", stat->reads, stat->events);
+
+    sb_report_cumulative(stat);
 }
 
 
 int tpch_done(void)
 {
-  return 0;
+    printf("Done\n");
+
+    return 0;
 }
