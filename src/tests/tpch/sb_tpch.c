@@ -37,6 +37,7 @@
 #include "sysbench.h"
 
 #define TPCH_QUERIES 22
+#define TPCH_QUERY_OFFSET(iteration) (iteration % TPCH_QUERIES == 0 ? TPCH_QUERIES : iteration % TPCH_QUERIES)
 
 /* TPC-H test arguments */
 static sb_arg_t tpch_args[] =
@@ -137,8 +138,7 @@ static int get_tpch_args(void)
 
 static char *add_path_to_root(char *add)
 {
-    int size = strlen(tpch.root_path) + strlen(add) + 2;
-    char *path = malloc(size);
+    char *path = malloc(strlen(tpch.root_path) + strlen(add) + 2);
 
     if (path == NULL) {
         return NULL;
@@ -166,13 +166,12 @@ static char** get_script_arguments(const char *path)
 
     sprintf(args_str[1], "%d", tpch.size);
 
-    args[0] = malloc(strlen(path));
+    args[0] = strdup(path);
     if (args[0] == NULL) {
         free(args);
         return NULL;
     }
 
-    strcpy(args[0], path);
     for (int i = 0; i < nb_args; i++) {
         args[i+1] = malloc(strlen(args_str[i]));
         if (args[i+1] == NULL) {
@@ -214,6 +213,9 @@ static int execute_init_script(void)
         if (args == NULL)
             return 1;
         int exit_code = execve(exec_path, args, sb_globals.env);
+        for (int i = 0; args[i] != NULL; i++)
+            free(args[i]);
+        free(args);
         if (exit_code == -1)
             printf("Something went wrong: %s\n", strerror(errno));
         exit(exit_code);
@@ -244,6 +246,7 @@ static char *get_sql_file_content(unsigned int id)
         free(file_path);
         return NULL;
     }
+    free(file_path);
     fseek(f, 0L, SEEK_END);
     file_size = ftell(f);
     rewind(f);
@@ -251,7 +254,6 @@ static char *get_sql_file_content(unsigned int id)
     content = malloc(file_size);
     if (content == NULL) {
         fclose(f);
-        free(file_path);
         return NULL;
     }
 
@@ -329,12 +331,14 @@ sb_event_t tpch_next_event(int thread_id)
 
 int tpch_execute_event(sb_event_t *r, int thread_id)
 {
+    /* unused */
+    (void)r;
+    (void)thread_id;
+
     static unsigned int event_count = 1;
     db_conn_t *conn = NULL;
     char *query = NULL;
-    size_t len = 0;
-    unsigned int script_id = event_count % 22 == 0 ? 22 : event_count % 22;
-    (void)r; /* unused */
+    unsigned int script_id = TPCH_QUERY_OFFSET(event_count);
 
     event_count++;
 
@@ -343,14 +347,12 @@ int tpch_execute_event(sb_event_t *r, int thread_id)
         return 1;
 
     query = tpch.sql_queries[script_id-1];
-    len = strlen(query);
 
-    db_result_t *res = db_query(conn, query, len);
+    db_result_t *res = db_query(conn, query, strlen(query));
     if (res == NULL) {
         printf("Error, got NULL result with query id %d\n", script_id);
         return 0;
     }
-
     db_free_results(res);
     db_connection_free(conn);
 
@@ -421,5 +423,13 @@ void tpch_report_cumulative(sb_stat_t *stat)
 
 int tpch_done(void)
 {
+    for (int i = 0; tpch.sql_queries != NULL && tpch.sql_queries[i] != NULL; i++)
+        free(tpch.sql_queries[i]);
+    if (tpch.sql_queries != NULL)
+        free(tpch.sql_queries);
+    free(tpch.query_path);
+
+    if (tpch.db_driver != NULL)
+        db_destroy(tpch.db_driver);
     return 0;
 }
