@@ -299,7 +299,7 @@ int tpch_execute_event(sb_event_t *r, int thread_id)
     db_result_t *res = db_query(conn, query, len);
     if (res == NULL) {
         printf("Error, got NULL result with query id %d\n", script_id);
-        return 1;
+        return 0;
     }
 
     db_free_results(res);
@@ -323,7 +323,24 @@ void tpch_report_cumulative(sb_stat_t *stat)
            stat->events / stat->time_interval);
 
 
-    printf("stat %d %d\n", stat->reads, stat->events);
+    const double seconds = stat->time_interval;
+    log_timestamp(LOG_NOTICE, stat->time_total,
+                  "thds: %u tps: %4.2f "
+                  "qps: %4.2f (r/w/o: %4.2f/%4.2f/%4.2f) "
+                  "lat (ms,%u%%): %4.2f err/s: %4.2f "
+                  "reconn/s: %4.2f",
+                  stat->threads_running,
+                  stat->events / seconds,
+                  (stat->reads + stat->writes + stat->other) / seconds,
+                  stat->reads / seconds,
+                  stat->writes / seconds,
+                  stat->other / seconds,
+                  sb_globals.percentile,
+                  SEC2MS(stat->latency_pct),
+                  stat->errors / seconds,
+                  stat->reconnects / seconds);
+
+    printf("stats:\n %d %d\n", stat->reads, stat->events);
 
     sb_report_cumulative(stat);
 }

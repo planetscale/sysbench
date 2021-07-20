@@ -35,13 +35,15 @@ mv *.tbl "$root/data"
 popd
 
 mysql "$mysql_params" < tpch_schema.sql
-mysql "$mysql_params" < tpch_alter.sql
 
 for file in $(find $root/data -name '*.tbl')
 do
-  echo "inserting $file"
-  echo "SET GLOBAL local_infile=1; /*+ SET_VAR(local_infile=1) */ LOAD DATA LOCAL INFILE '$file' INTO TABLE SUPPLIER FIELDS TERMINATED BY '|' LINES TERMINATED BY '|\n';" | mysql --local-infile=1 $mysql_params
+  table_name=$(echo $file | cut -d'.' -f1 | rev | cut -d'/' -f1 | rev)
+  echo "inserting $file for table $table_name"
+  echo "SET GLOBAL local_infile=1; /*+ SET_VAR(local_infile=1) */ LOAD DATA LOCAL INFILE '$file' INTO TABLE $table_name FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n';" | mysql --local-infile=1 $mysql_params
   rm -f $file
 done
+
+mysql "$mysql_params" < tpch_alter.sql
 
 rmdir "$root/data"
