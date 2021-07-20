@@ -36,6 +36,8 @@
 
 #include "sysbench.h"
 
+#define TPCH_QUERIES 22
+
 /* TPC-H test arguments */
 static sb_arg_t tpch_args[] =
 {
@@ -61,6 +63,7 @@ typedef struct tpch_s {
     char *root_path;
     char *query_path;
     db_driver_t *db_driver;
+    char **sql_queries;
 } tpch_t;
 
 static tpch_t tpch = {};
@@ -135,7 +138,7 @@ static int get_tpch_args(void)
 static char *add_path_to_root(char *add)
 {
     int size = strlen(tpch.root_path) + strlen(add) + 2;
-    char *path = malloc(sizeof(char) * size);
+    char *path = malloc(size);
 
     if (path == NULL) {
         return NULL;
@@ -163,7 +166,7 @@ static char** get_script_arguments(const char *path)
 
     sprintf(args_str[1], "%d", tpch.size);
 
-    args[0] = malloc(sizeof(char) * strlen(path));
+    args[0] = malloc(strlen(path));
     if (args[0] == NULL) {
         free(args);
         return NULL;
@@ -171,7 +174,7 @@ static char** get_script_arguments(const char *path)
 
     strcpy(args[0], path);
     for (int i = 0; i < nb_args; i++) {
-        args[i+1] = malloc(sizeof(char) * strlen(args_str[i]));
+        args[i+1] = malloc(strlen(args_str[i]));
         if (args[i+1] == NULL) {
             for (int j = i; j >= 0; j--)
                 free(args[j]);
@@ -201,7 +204,7 @@ static int execute_init_script(void)
             return 1;
         chdir(path);
 
-        exec_path = malloc(sizeof(char) * (strlen(path) + strlen("/tpch_init.sh")));
+        exec_path = malloc(strlen(path) + strlen("/tpch_init.sh"));
         if (exec_path == NULL)
             return 1;
         strcat(exec_path, path);
@@ -230,14 +233,11 @@ static char *get_sql_file_content(unsigned int id)
     FILE *f = NULL;
     long file_size = 0;
     char *content = NULL;
-    char *file_path = malloc(sizeof(char) * (strlen(tpch.query_path) + strlen("/00.sql")));
+    char *file_path = malloc((strlen(tpch.query_path) + strlen("/00.sql")));
 
     if (file_path == NULL)
         return NULL;
-    if (id < 10)
-        sprintf(file_path, "%s/0%d.sql", tpch.query_path, id);
-    else
-        sprintf(file_path, "%s/%d.sql", tpch.query_path, id);
+    sprintf(file_path, "%s/%02d.sql", tpch.query_path, id);
 
     f = fopen(file_path, "rb");
     if (f == NULL) {
@@ -248,7 +248,7 @@ static char *get_sql_file_content(unsigned int id)
     file_size = ftell(f);
     rewind(f);
 
-    content = malloc(sizeof(char) * file_size);
+    content = malloc(file_size);
     if (content == NULL) {
         fclose(f);
         free(file_path);
@@ -260,6 +260,25 @@ static char *get_sql_file_content(unsigned int id)
     f = NULL;
 
     return content;
+}
+
+static char **load_all_queries()
+{
+    char **queries = malloc(sizeof(char *) * (TPCH_QUERIES + 1));
+
+    if (queries == NULL)
+        return NULL;
+    for (int i = 0; i < TPCH_QUERIES; i++) {
+        queries[i] = get_sql_file_content(i+1);
+        if (queries[i] == NULL) {
+            for (int j = i-1; j >= 0; j--)
+                free(queries[j]);
+            free(queries);
+            return NULL;
+        }
+    }
+    queries[TPCH_QUERIES] = NULL;
+    return queries;
 }
 
 int register_test_tpch(sb_list_t * tests)
@@ -292,6 +311,9 @@ int tpch_init(void)
     if (tpch.query_path == NULL)
         return 1;
 
+    tpch.sql_queries = load_all_queries();
+    if (tpch.sql_queries == NULL)
+        return 1;
     return 0;
 }
 
@@ -317,11 +339,10 @@ int tpch_execute_event(sb_event_t *r, int thread_id)
     event_count++;
 
     conn = db_connection_create(tpch.db_driver);
-    if (conn == NULL) {
+    if (conn == NULL)
         return 1;
-    }
 
-    query = get_sql_file_content(script_id);
+    query = tpch.sql_queries[script_id-1];
     len = strlen(query);
 
     db_result_t *res = db_query(conn, query, len);

@@ -1447,14 +1447,13 @@ int main(int argc, char *argv[], char *env[])
 
   /* Get the environment's size and copy it to sb_globals */
   int env_size = 0;
-  while (env[env_size] != NULL) {
+  while (env[env_size] != NULL)
     env_size++;
-  }
-  sb_globals.env = malloc(env_size * sizeof(char *));
-  if (sb_globals.env == NULL) {
+  sb_globals.env = malloc((env_size + 1) * sizeof(char *));
+  if (sb_globals.env == NULL)
       return EXIT_FAILURE;
-  }
   memcpy(sb_globals.env, env, env_size * sizeof(char *));
+  sb_globals.env[env_size] = NULL;
 
   /* Initialize options library */
   sb_options_init();
