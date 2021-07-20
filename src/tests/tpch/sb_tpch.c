@@ -41,7 +41,7 @@ static sb_arg_t tpch_args[] =
 {
   SB_OPT("data-size", "Size of the data to generate in GB", "", INT),
   SB_OPT("root-path", "Absolute path to sysbench's root", "", STRING),
-
+  SB_OPT("report-json", "Print the results in JSON format", "off", BOOL),
   SB_OPT_END
 };
 
@@ -51,6 +51,7 @@ static int tpch_init(void);
 static void tpch_print_mode(void);
 static sb_event_t tpch_next_event(int thread_id);
 static int tpch_execute_event(sb_event_t *, int);
+static void tpch_report_intermediate(sb_stat_t *);
 static void tpch_report_cumulative(sb_stat_t *);
 static int tpch_done(void);
 
@@ -73,6 +74,7 @@ static sb_test_t tpch_test =
     .print_mode = tpch_print_mode,
     .next_event = tpch_next_event,
     .execute_event = tpch_execute_event,
+    .report_intermediate = tpch_report_intermediate,
     .report_cumulative = tpch_report_cumulative,
     .done = tpch_done
   },
@@ -82,14 +84,33 @@ static sb_test_t tpch_test =
   .args = tpch_args
 };
 
-/* Upper limit for primes */
-static unsigned int    max_prime;
-
-int register_test_tpch(sb_list_t * tests)
+static void tpch_report_json(const double seconds, sb_stat_t *stat)
 {
-  SB_LIST_ADD_TAIL(&tpch_test.listitem, tests);
-
-  return 0;
+    printf("[\n"
+           "\t{\n"
+           "\t\t\"time\": %d,\n"
+           "\t\t\"threads\": %d,\n"
+           "\t\t\"tps\": %4.2f,\n"
+           "\t\t\"qps\": {\n"
+           "\t\t\t\"total\": %4.2f,\n"
+           "\t\t\t\"reads\": %4.2f,\n"
+           "\t\t\t\"writes\": %4.2f,\n"
+           "\t\t\t\"other\": %4.2f,\n"
+           "\t\t\"latency\": %4.2f,\n"
+           "\t\t\"errors\": %4.2f,\n"
+           "\t\t\"reconnects\": %4.2f\n"
+           "\t}\n"
+           "]\n",
+           (int)seconds,
+           0,
+           stat->events / seconds,
+           (stat->reads + stat->writes + stat->other) / seconds,
+           stat->reads / seconds,
+           stat->writes / seconds,
+           stat->other / seconds,
+           SEC2MS(stat->latency_pct),
+           stat->errors / seconds,
+           stat->reconnects / seconds);
 }
 
 static int get_tpch_args(void)
@@ -204,42 +225,6 @@ static int execute_init_script(void)
     return 0;
 }
 
-int tpch_prepare(void)
-{
-    if (get_tpch_args() > 0) {
-        return 1;
-    }
-    execute_init_script();
-
-    return 0;
-}
-
-int tpch_init(void)
-{
-    if (get_tpch_args() > 0)
-        return 1;
-
-    tpch.db_driver = db_create(NULL);
-    if (tpch.db_driver == NULL)
-        return 1;
-
-    tpch.query_path = add_path_to_root("src/tests/tpch/scripts/queries");
-    if (tpch.query_path == NULL)
-        return 1;
-
-    return 0;
-}
-
-
-sb_event_t tpch_next_event(int thread_id)
-{
-    sb_event_t req;
-
-    req.type = SB_REQ_TYPE_SQL;
-
-    return req;
-}
-
 static char *get_sql_file_content(unsigned int id)
 {
     FILE *f = NULL;
@@ -277,6 +262,49 @@ static char *get_sql_file_content(unsigned int id)
     return content;
 }
 
+int register_test_tpch(sb_list_t * tests)
+{
+    SB_LIST_ADD_TAIL(&tpch_test.listitem, tests);
+
+    return 0;
+}
+
+int tpch_prepare(void)
+{
+    if (get_tpch_args() > 0) {
+        return 1;
+    }
+    execute_init_script();
+
+    return 0;
+}
+
+int tpch_init(void)
+{
+    if (get_tpch_args() > 0)
+        return 1;
+
+    tpch.db_driver = db_create(NULL);
+    if (tpch.db_driver == NULL)
+        return 1;
+
+    tpch.query_path = add_path_to_root("src/tests/tpch/scripts/queries");
+    if (tpch.query_path == NULL)
+        return 1;
+
+    return 0;
+}
+
+
+sb_event_t tpch_next_event(int thread_id)
+{
+    sb_event_t req;
+
+    req.type = SB_REQ_TYPE_SQL;
+
+    return req;
+}
+
 int tpch_execute_event(sb_event_t *r, int thread_id)
 {
     static unsigned int event_count = 1;
@@ -310,20 +338,47 @@ int tpch_execute_event(sb_event_t *r, int thread_id)
 
 void tpch_print_mode(void)
 {
-  log_text(LOG_INFO, "Doing CPU performance benchmark\n");  
-  log_text(LOG_NOTICE, "Prime numbers limit: %d\n", max_prime);
+
+}
+
+void tpch_report_intermediate(sb_stat_t *stat)
+{
+    int json_format = sb_get_value_flag("report-json");
+    const double seconds = stat->time_total;
+
+    if (json_format) {
+        tpch_report_json(seconds, stat);
+        return;
+    }
+
+    log_timestamp(LOG_NOTICE, stat->time_total,
+                  "thds: %u tps: %4.2f "
+                  "qps: %4.2f (r/w/o: %4.2f/%4.2f/%4.2f) "
+                  "lat (ms,%u%%): %4.2f err/s: %4.2f "
+                  "reconn/s: %4.2f",
+                  stat->threads_running,
+                  stat->events / seconds,
+                  (stat->reads + stat->writes + stat->other) / seconds,
+                  stat->reads / seconds,
+                  stat->writes / seconds,
+                  stat->other / seconds,
+                  sb_globals.percentile,
+                  SEC2MS(stat->latency_pct),
+                  stat->errors / seconds,
+                  stat->reconnects / seconds);
 }
 
 /* Print cumulative stats. */
 
 void tpch_report_cumulative(sb_stat_t *stat)
 {
-    log_text(LOG_NOTICE, "CPU speed:");
-    log_text(LOG_NOTICE, "    events per second: %8.2f",
-           stat->events / stat->time_interval);
+    int json_format = sb_get_value_flag("report-json");
+    const double seconds = stat->time_total;
 
-
-    const double seconds = stat->time_interval;
+    if (json_format) {
+        tpch_report_json(seconds, stat);
+        return;
+    }
     log_timestamp(LOG_NOTICE, stat->time_total,
                   "thds: %u tps: %4.2f "
                   "qps: %4.2f (r/w/o: %4.2f/%4.2f/%4.2f) "
@@ -340,15 +395,10 @@ void tpch_report_cumulative(sb_stat_t *stat)
                   stat->errors / seconds,
                   stat->reconnects / seconds);
 
-    printf("stats:\n %d %d\n", stat->reads, stat->events);
-
     sb_report_cumulative(stat);
 }
 
-
 int tpch_done(void)
 {
-    printf("Done\n");
-
     return 0;
 }
