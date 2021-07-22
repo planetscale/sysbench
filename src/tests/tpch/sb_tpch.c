@@ -154,7 +154,7 @@ static char *add_path_to_root(char *add)
 static char** get_script_arguments(const char *path)
 {
     const int nb_args = 4;
-    char args_str[nb_args][32] = {
+    char args_str[4][32] = {
             "--size",
             "",
             "--mysql-params",
