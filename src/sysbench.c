@@ -447,6 +447,7 @@ static int register_tests(void)
     + register_test_memory(&tests)
     + register_test_threads(&tests)
     + register_test_mutex(&tests)
+    + register_test_tpch(&tests)
     + db_register()
     + sb_rand_register()
     ;
@@ -1435,7 +1436,7 @@ static int init(void)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char *env[])
 {
   sb_test_t *test = NULL;
   int rc;
@@ -1443,6 +1444,16 @@ int main(int argc, char *argv[])
   sb_globals.argc = argc;
   sb_globals.argv = malloc(argc * sizeof(char *));
   memcpy(sb_globals.argv, argv, argc * sizeof(char *));
+
+  /* Get the environment's size and copy it to sb_globals */
+  int env_size = 0;
+  while (env[env_size] != NULL)
+    env_size++;
+  sb_globals.env = malloc((env_size + 1) * sizeof(char *));
+  if (sb_globals.env == NULL)
+      return EXIT_FAILURE;
+  memcpy(sb_globals.env, env, env_size * sizeof(char *));
+  sb_globals.env[env_size] = NULL;
 
   /* Initialize options library */
   sb_options_init();

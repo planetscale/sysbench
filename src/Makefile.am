@@ -43,7 +43,7 @@ xoroshiro128plus.h
 
 sysbench_LDADD = tests/fileio/libsbfileio.a tests/threads/libsbthreads.a \
     tests/memory/libsbmemory.a tests/cpu/libsbcpu.a \
-    tests/mutex/libsbmutex.a \
+    tests/mutex/libsbmutex.a tests/tpch/libsbtpch.a  \
     $(mysql_ldadd) $(pgsql_ldadd) \
     $(LUAJIT_LIBS) $(CK_LIBS)
 
