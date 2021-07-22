@@ -173,14 +173,13 @@ static char** get_script_arguments(const char *path)
     }
 
     for (int i = 0; i < nb_args; i++) {
-        args[i+1] = malloc(strlen(args_str[i]));
+        args[i+1] = strdup(args_str[i]);
         if (args[i+1] == NULL) {
             for (int j = i; j >= 0; j--)
                 free(args[j]);
             free(args);
             return NULL;
         }
-        strcpy(args[i+1], args_str[i]);
     }
     args[nb_args+1] = NULL;
     return args;
