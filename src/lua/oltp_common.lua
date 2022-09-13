@@ -371,6 +371,10 @@ function prepare_delete_inserts()
    prepare_for_each_table("inserts")
 end
 
+function prepare_conns_setttings()
+   con:query("SET sql_mode=''")
+end
+
 function thread_init()
    drv = sysbench.sql.driver()
    con = drv:connect()
