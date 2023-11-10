@@ -93,16 +93,6 @@ end
 --
 -- sysbench.hooks.report_intermediate = sysbench.report_json
 function sysbench.report_json(stat)
-   if not gobj then
-      io.write('[\n')
-      -- hack to print the closing bracket when the Lua state of the reporting
-      -- thread is closed
-      gobj = newproxy(true)
-      getmetatable(gobj).__gc = function () io.write('\n]\n') end
-   else
-      io.write(',\n')
-   end
-
    local seconds = stat.time_interval
    io.write(([[
   {
@@ -118,7 +108,8 @@ function sysbench.report_json(stat)
     "latency": %4.2f,
     "errors": %4.2f,
     "reconnects": %4.2f
-  }]]):format(
+  }
+  ]]):format(
             stat.time_total,
             stat.threads_running,
             stat.events / seconds,
