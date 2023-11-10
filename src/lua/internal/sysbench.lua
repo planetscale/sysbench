@@ -95,21 +95,21 @@ end
 function sysbench.report_json(stat)
    local seconds = stat.time_interval
    io.write(([[
- {
-   "time": %4.0f,
-   "threads": %u,
-   "tps": %4.2f,
-   "qps": {
-     "total": %4.2f,
-     "reads": %4.2f,
-     "writes": %4.2f,
-     "other": %4.2f
-   },
-   "latency": %4.2f,
-   "errors": %4.2f,
-   "reconnects": %4.2f
- }
-  ]]):format(
+{
+  "time": %4.0f,
+  "threads": %u,
+  "tps": %4.2f,
+  "qps": {
+    "total": %4.2f,
+    "reads": %4.2f,
+    "writes": %4.2f,
+    "other": %4.2f
+  },
+  "latency": %4.2f,
+  "errors": %4.2f,
+  "reconnects": %4.2f
+}
+]]):format(
             stat.time_total,
             stat.threads_running,
             stat.events / seconds,
