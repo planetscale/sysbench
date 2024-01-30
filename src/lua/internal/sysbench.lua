@@ -106,6 +106,7 @@ function sysbench.report_json(stat)
    local seconds = stat.time_interval
    io.write(([[
   {
+    "queries": %u,
     "time": %4.0f,
     "threads": %u,
     "tps": %4.2f,
@@ -119,6 +120,7 @@ function sysbench.report_json(stat)
     "errors": %4.2f,
     "reconnects": %4.2f
   }]]):format(
+            (stat.reads + stat.writes + state.other),
             stat.time_total,
             stat.threads_running,
             stat.events / seconds,
