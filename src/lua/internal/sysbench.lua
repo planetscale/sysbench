@@ -120,7 +120,7 @@ function sysbench.report_json(stat)
     "errors": %4.2f,
     "reconnects": %4.2f
   }]]):format(
-            (stat.reads + stat.writes + state.other),
+            (stat.reads + stat.writes + stat.other),
             stat.time_total,
             stat.threads_running,
             stat.events / seconds,
