@@ -21,6 +21,8 @@ function prepare()
    for i = 1, sysbench.opt.threads do
       print("Creating table 'sbtest" .. i .. "'...")
       con:query(string.format([[
+        DROP TABLE IF EXISTS sbtest%d]], table_num))
+      con:query(string.format([[
         CREATE TABLE IF NOT EXISTS sbtest%d (
           id INTEGER NOT NULL,
           k INTEGER DEFAULT '0' NOT NULL,

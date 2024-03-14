@@ -209,6 +209,13 @@ function create_table(drv, con, table_num)
 
    print(string.format("Creating table 'sbtest%d'...", table_num))
 
+  query = string.format([[
+DROP TABLE IF EXISTS sbtest%d
+  ]],
+      table_num)
+
+  con:query(query)
+
    query = string.format([[
 CREATE TABLE IF NOT EXISTS sbtest%d(
   id %s,
